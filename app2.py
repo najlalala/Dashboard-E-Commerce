@@ -249,8 +249,20 @@ if page == "Executive Overview":
     yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
 
     # === MoM Revenue ===
-    monthly_data = orders_payments.merge(df[['order_id', 'month']], on='order_id', how='left')
+    # Pastikan kolom month ada
+    df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
+    
+    # Merge ke payments
+    if 'month' in df.columns:
+        monthly_data = orders_payments.merge(df[['order_id', 'month']], on='order_id', how='left')
+    else:
+        st.error("Kolom 'month' tidak ditemukan di data orders.")
+        monthly_data = orders_payments.copy()
+        monthly_data['month'] = 'Unknown'
+    
+    # Group & urutkan
     monthly_revenue = monthly_data.groupby('month', as_index=False)['payment_value'].sum()
+    monthly_revenue = monthly_revenue.sort_values('month')
     monthly_revenue = monthly_revenue.sort_values('month')
     monthly_revenue['growth'] = monthly_revenue['payment_value'].pct_change() * 100
     monthly_revenue['growth_label'] = monthly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
