@@ -210,7 +210,7 @@ if page == "Executive Overview":
         st.metric("💳 Avg Order Value", f"€ {avg_order_value:,.0f}", delta=calc_growth(avg_order_value, prev_avg))
 
     st.markdown("---")
-    
+        
     # ===================
     # GROWTH ANALYSIS VISUALS
     # ===================
@@ -219,21 +219,23 @@ if page == "Executive Overview":
     # Pakai data yang sudah difilter
     df = orders_filtered.copy()
     
-    # Pastikan ada data
     if df.empty or orders_payments_filtered.empty:
         st.warning("⚠️ Tidak ada data untuk periode ini.")
     else:
-        # Tambahkan kolom waktu
-        if 'year' not in df.columns:
+        # Pastikan kolom waktu ada
+        if 'order_purchase_timestamp' in df.columns:
             df['year'] = df['order_purchase_timestamp'].dt.year
-        if 'month' not in df.columns:
             df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
+        else:
+            st.error("Data tidak memiliki kolom order_purchase_timestamp.")
+            st.stop()
     
         # === YoY Revenue ===
-        yearly_data = orders_payments_filtered.merge(df[['order_id', 'year']], on='order_id', how='left')
-        yearly_data['year'] = yearly_data['year'].fillna(0).astype(int)
+        yearly_data = orders_payments_filtered.merge(
+            df[['order_id', 'year']], on='order_id', how='left'
+        )
     
-        if yearly_data.empty:
+        if 'year' not in yearly_data.columns or yearly_data.empty:
             yearly_revenue = pd.DataFrame(columns=['year', 'payment_value', 'growth', 'growth_label'])
         else:
             yearly_revenue = yearly_data.groupby('year', as_index=False)['payment_value'].sum()
@@ -245,9 +247,11 @@ if page == "Executive Overview":
             yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
     
         # === MoM Revenue ===
-        monthly_data = orders_payments_filtered.merge(df[['order_id', 'month']], on='order_id', how='left')
+        monthly_data = orders_payments_filtered.merge(
+            df[['order_id', 'month']], on='order_id', how='left'
+        )
     
-        if monthly_data.empty:
+        if 'month' not in monthly_data.columns or monthly_data.empty:
             monthly_revenue = pd.DataFrame(columns=['month', 'payment_value', 'growth', 'growth_label'])
         else:
             monthly_revenue = monthly_data.groupby('month', as_index=False)['payment_value'].sum()
@@ -278,14 +282,12 @@ if page == "Executive Overview":
                 monthly_revenue, x='month_dt', y='payment_value', markers=True,
                 title="MoM Revenue Trend", labels={'payment_value': 'Revenue (€)', 'month_dt': 'Month'}
             )
-            fig_mom.update_xaxes(tickformat="%b %Y")  # Format axis jadi Jan 2018
+            fig_mom.update_xaxes(tickformat="%b %Y")
             st.plotly_chart(fig_mom, use_container_width=True)
         else:
             st.info("Tidak ada data MoM untuk ditampilkan.")
     
         st.markdown("---")
-
-
     
     # ===================
     # Orders per Month - Improved
