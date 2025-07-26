@@ -5,3 +5,4 @@ plotly>=5.19.0
 folium>=0.15.1
 streamlit-folium>=0.15.0
 requests>=2.31.0
+gdown>=4.7.1
