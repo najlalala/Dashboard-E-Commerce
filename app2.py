@@ -495,9 +495,7 @@ if page == "Executive Overview":
         total_revenue = orders_payments_filtered['payment_value'].sum()
         prev_revenue = prev_payments_data['payment_value'].sum() if not prev_payments_data.empty else 0
         revenue_growth = calc_growth(total_revenue, prev_revenue)
-    
-        st.metric("💰 Total Revenue", f"€ {total_revenue:,.0f}", delta=revenue_growth)
-    
+        
         st.info(f"""
         **Financial Insights**
         - Total Revenue: € {total_revenue:,.0f}
