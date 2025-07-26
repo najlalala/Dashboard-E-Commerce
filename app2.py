@@ -111,66 +111,45 @@ page = st.sidebar.radio(
 )
 
 
-# Date Filter Section
 st.sidebar.markdown("---")
 st.sidebar.subheader(" Filter Periode")
 
-# Check if date column exists and has valid data
 has_valid_dates = (
     'order_purchase_timestamp' in orders_processed.columns and 
     not orders_processed['order_purchase_timestamp'].isna().all()
 )
 
 if has_valid_dates:
-    # Get date range
     min_date = orders_processed['order_purchase_timestamp'].min().date()
     max_date = orders_processed['order_purchase_timestamp'].max().date()
-    
-    # Separate date inputs
-    start_date = st.sidebar.date_input(
-        "📅 Tanggal Mulai:",
-        value=min_date,
-        min_value=min_date,
-        max_value=max_date
-    )
-    
-    end_date = st.sidebar.date_input(
-        "📅 Tanggal Selesai:",
-        value=max_date,
-        min_value=min_date,
-        max_value=max_date
-    )
-    
-    # Validate date range
+
+    start_date = st.sidebar.date_input("📅 Tanggal Mulai:", value=min_date, min_value=min_date, max_value=max_date)
+    end_date = st.sidebar.date_input("📅 Tanggal Selesai:", value=max_date, min_value=min_date, max_value=max_date)
+
     if start_date <= end_date:
-        
-        # Filter main orders data
         date_mask = (
             (orders_processed['order_purchase_timestamp'].dt.date >= start_date) & 
             (orders_processed['order_purchase_timestamp'].dt.date <= end_date)
         )
         orders_filtered = orders_processed[date_mask]
-        
-        # Get filtered order IDs for related data
+
         filtered_order_ids = orders_filtered['order_id'].tolist()
         orders_payments_filtered = orders_payments[orders_payments['order_id'].isin(filtered_order_ids)]
         orders_items_filtered = orders_items[orders_items['order_id'].isin(filtered_order_ids)]
-        
-        # Show filter info
+
         st.sidebar.info(f"📊 {len(orders_filtered):,} pesanan dipilih")
     else:
-        # Show error if date range is invalid
         st.sidebar.error("⚠️ Tanggal mulai tidak boleh lebih besar dari tanggal selesai")
-        orders_filtered = orders_processed
-        orders_payments_filtered = orders_payments  
-        orders_items_filtered = orders_items
+        orders_filtered, orders_payments_filtered, orders_items_filtered = orders_processed, orders_payments, orders_items
 else:
-    # Use all data if no valid dates
-    orders_filtered = orders_processed
-    orders_payments_filtered = orders_payments
-    orders_items_filtered = orders_items
+    orders_filtered, orders_payments_filtered, orders_items_filtered = orders_processed, orders_payments, orders_items
     st.sidebar.warning("⚠️ Data tanggal tidak tersedia")
 
+# Pastikan kolom month dan year_month tetap ada setelah filter
+if 'month' not in orders_filtered.columns:
+    orders_filtered['month'] = orders_filtered['order_purchase_timestamp'].dt.to_period("M").astype(str)
+if 'year_month' not in orders_filtered.columns:
+    orders_filtered['year_month'] = orders_filtered['order_purchase_timestamp'].dt.strftime('%Y-%m')
     
 # ================================
 # 📌 HALAMAN: EXECUTIVE OVERVIEW
