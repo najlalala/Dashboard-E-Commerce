@@ -769,58 +769,6 @@ elif page == "Customer & Market Analysis":
             labels={'year_month': 'Month', 'count': 'Number of Transactions'}
         )
         st.plotly_chart(fig_payment_trend, use_container_width=True)
-
-    # ===================
-    # New vs Returning Customer Analysis (Enhanced)
-    # ===================
-    st.subheader("👥 Customer Acquisition & Retention Analysis")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Customer acquisition trend
-        first_order = orders_filtered.groupby('customer_id')['order_purchase_timestamp'].min().reset_index()
-        first_order['acquisition_month'] = first_order['order_purchase_timestamp'].dt.strftime('%Y-%m')
-        acquisition_trend = first_order.groupby('acquisition_month').size().reset_index(name='new_customers')
-        
-        fig_acquisition = px.line(
-            acquisition_trend,
-            x='acquisition_month',
-            y='new_customers',
-            title='Customer Acquisition Trend',
-            labels={'acquisition_month': 'Month', 'new_customers': 'New Customers'}
-        )
-        st.plotly_chart(fig_acquisition, use_container_width=True)
-    
-    with col2:
-        # Cohort retention analysis (simplified)
-        cohort_data = orders_filtered.merge(first_order, on='customer_id', suffixes=('', '_first'))
-        cohort_data['period_number'] = (
-            cohort_data['order_purchase_timestamp'].dt.to_period('M') - 
-            cohort_data['order_purchase_timestamp_first'].dt.to_period('M')
-        ).apply(lambda x: x.n)
-        
-        cohort_table = cohort_data.groupby(['acquisition_month', 'period_number'])['customer_id'].nunique().reset_index()
-        cohort_sizes = cohort_data.groupby('acquisition_month')['customer_id'].nunique()
-        
-        # Calculate retention rates
-        cohort_retention = cohort_table.set_index(['acquisition_month', 'period_number'])['customer_id'].unstack(fill_value=0)
-        
-        if not cohort_retention.empty:
-            for i in cohort_retention.index:
-                cohort_retention.loc[i] = cohort_retention.loc[i] / cohort_sizes[i]
-            
-            fig_cohort = px.imshow(
-                cohort_retention.values,
-                x=[f'Month {i}' for i in cohort_retention.columns],
-                y=cohort_retention.index,
-                title='Customer Retention Cohort Analysis',
-                aspect='auto'
-            )
-            st.plotly_chart(fig_cohort, use_container_width=True)
-        else:
-            st.info("Insufficient data for cohort analysis")
-
     # ===================
     # Customer Insights Summary
     # ===================
