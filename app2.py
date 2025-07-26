@@ -203,32 +203,34 @@ def calc_growth(current, previous, cap=999):
 # --- EXECUTIVE OVERVIEW ---
 if page == "Executive Overview":
     st.header("📌 Executive Overview")
+
+    # ===================
+    # KPI METRICS
+    # ===================
     col1, col2, col3, col4 = st.columns(4)
     
-    # Revenue
     with col1:
         total_revenue = orders_payments_filtered['payment_value'].sum()
         prev_revenue = prev_payments_data['payment_value'].sum() if not prev_payments_data.empty else 0
         st.metric("💰 Total Revenue", f"€ {total_revenue:,.0f}", delta=calc_growth(total_revenue, prev_revenue))
 
-    # Orders
     with col2:
         total_orders = orders_filtered['order_id'].nunique()
         prev_orders = prev_orders_data['order_id'].nunique() if not prev_orders_data.empty else 0
         st.metric("📦 Total Orders", f"{total_orders:,}", delta=calc_growth(total_orders, prev_orders))
 
-    # Customers
     with col3:
         total_customers = orders_filtered['customer_id'].nunique()
         prev_customers = prev_orders_data['customer_id'].nunique() if not prev_orders_data.empty else 0
         st.metric("🧑‍🤝‍🧑 Unique Customers", f"{total_customers:,}", delta=calc_growth(total_customers, prev_customers))
 
-    # AOV
     with col4:
         avg_order_value = orders_payments_filtered['payment_value'].mean() or 0
         prev_avg = prev_payments_data['payment_value'].mean() or 0
         st.metric("💳 Avg Order Value", f"€ {avg_order_value:,.0f}", delta=calc_growth(avg_order_value, prev_avg))
-        
+
+    st.markdown("---")
+
     # ===================
     # GROWTH ANALYSIS VISUALS
     # ===================
@@ -267,6 +269,7 @@ if page == "Executive Overview":
     st.plotly_chart(fig_mom, use_container_width=True)
 
     st.markdown("---")
+
     
     # ===================
     # Orders per Month - Improved
