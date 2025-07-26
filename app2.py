@@ -69,22 +69,24 @@ product_category_name_translation = data['product_cat']
 # Data preprocessing
 @st.cache_data
 def preprocess_data():
-    # Convert timestamp columns
+    # Copy dan convert timestamp
     orders_clean = orders.copy()
     orders_clean['order_purchase_timestamp'] = pd.to_datetime(orders_clean['order_purchase_timestamp'], errors='coerce')
-    
-    # Create month column
+
+    # Tambahkan kolom waktu
     orders_clean['month'] = orders_clean['order_purchase_timestamp'].dt.to_period("M").astype(str)
+    orders_clean['year'] = orders_clean['order_purchase_timestamp'].dt.year
     orders_clean['year_month'] = orders_clean['order_purchase_timestamp'].dt.strftime('%Y-%m')
-    
-    # Merge orders with payments for revenue calculation
+
+    # Merge dengan payments
     orders_payments = orders_clean.merge(payments, on='order_id', how='left')
-    
-    # Merge with order_items for product analysis
+
+    # Merge dengan order_items
     orders_items = orders_clean.merge(order_items, on='order_id', how='left')
-    
+
     return orders_clean, orders_payments, orders_items
 
+# Jalankan preprocess
 orders_processed, orders_payments, orders_items = preprocess_data()
 
 @st.cache_data(show_spinner=False)
@@ -213,54 +215,50 @@ if page == "Executive Overview":
     # GROWTH ANALYSIS VISUALS
     # ===================
     st.subheader("📈 Growth Analysis")
-
-    # Siapkan data untuk YoY dan MoM
-    df = orders_processed.copy()
+    
+    # Pakai data yang sudah difilter (bukan full dataset)
+    df = orders_filtered.copy()
+    
+    # Tambahkan kolom waktu
     df['year'] = df['order_purchase_timestamp'].dt.year
     df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
-
+    
     # === YoY Revenue ===
-    yearly_data = orders_payments.merge(df[['order_id', 'year']], on='order_id', how='left')
+    yearly_data = orders_payments_filtered.merge(df[['order_id', 'year']], on='order_id', how='left')
     yearly_revenue = yearly_data.groupby('year', as_index=False)['payment_value'].sum()
     yearly_revenue = yearly_revenue.sort_values('year')
     yearly_revenue['growth'] = yearly_revenue['payment_value'].pct_change() * 100
     yearly_revenue['growth_label'] = yearly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
     yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
-
+    
     # === MoM Revenue ===
-    # Pastikan kolom month ada
-    df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
-    
-    # Merge ke payments
-    if 'month' in df.columns:
-        monthly_data = orders_payments.merge(df[['order_id', 'month']], on='order_id', how='left')
-    else:
-        st.error("Kolom 'month' tidak ditemukan di data orders.")
-        monthly_data = orders_payments.copy()
-        monthly_data['month'] = 'Unknown'
-    
-    # Group & urutkan
+    monthly_data = orders_payments_filtered.merge(df[['order_id', 'month']], on='order_id', how='left')
     monthly_revenue = monthly_data.groupby('month', as_index=False)['payment_value'].sum()
-    monthly_revenue = monthly_revenue.sort_values('month')
-    monthly_revenue = monthly_revenue.sort_values('month')
+    
+    # Ubah month ke datetime agar urut
+    monthly_revenue['month_dt'] = pd.to_datetime(monthly_revenue['month'], format='%Y-%m')
+    monthly_revenue = monthly_revenue.sort_values('month_dt')
+    
     monthly_revenue['growth'] = monthly_revenue['payment_value'].pct_change() * 100
     monthly_revenue['growth_label'] = monthly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
     monthly_revenue.loc[monthly_revenue['growth'] > 999, 'growth_label'] = "999%+"
-
+    
     # --- YoY Chart ---
     st.subheader("📊 Year-over-Year (YoY) Revenue")
     fig_yoy = px.bar(yearly_revenue, x='year', y='payment_value', text='growth_label',
                      title="YoY Revenue & Growth", labels={'payment_value': 'Revenue (€)'})
     fig_yoy.update_traces(textposition='outside')
     st.plotly_chart(fig_yoy, use_container_width=True)
-
+    
     # --- MoM Chart ---
     st.subheader("📉 Month-over-Month (MoM) Revenue")
-    fig_mom = px.line(monthly_revenue, x='month', y='payment_value', markers=True,
-                      title="MoM Revenue Trend", labels={'payment_value': 'Revenue (€)'})
+    fig_mom = px.line(monthly_revenue, x='month_dt', y='payment_value', markers=True,
+                      title="MoM Revenue Trend", labels={'payment_value': 'Revenue (€)', 'month_dt': 'Month'})
+    fig_mom.update_xaxes(tickformat="%b %Y")  # Format axis jadi Jan 2018
     st.plotly_chart(fig_mom, use_container_width=True)
-
+    
     st.markdown("---")
+
     
     # ===================
     # Orders per Month - Improved
