@@ -489,30 +489,47 @@ if page == "Executive Overview":
     st.subheader("📋 Performance Summary")
     
     col1, col2, col3 = st.columns(3)
-    
+        
     with col1:
+        # Revenue
+        total_revenue = orders_payments_filtered['payment_value'].sum()
+        prev_revenue = prev_payments_data['payment_value'].sum() if not prev_payments_data.empty else 0
+        revenue_growth = calc_growth(total_revenue, prev_revenue)
+    
+        st.metric("💰 Total Revenue", f"€ {total_revenue:,.0f}", delta=revenue_growth)
+    
         st.info(f"""
-        **Revenue Performance**
+        **Financial Insights**
         - Total Revenue: € {total_revenue:,.0f}
-        - Average Order Value: € {avg_order_value:,.0f}
-        - Growth Rate: {growth_rate:.1f}%
+        - Growth Rate: {revenue_growth}
         """)
     
     with col2:
+        # Customers
+        total_customers = orders_filtered['customer_id'].nunique()
+        prev_customers = prev_orders_data['customer_id'].nunique() if not prev_orders_data.empty else 0
+        customers_growth = calc_growth(total_customers, prev_customers)
+    
         st.success(f"""
         **Customer Insights**
         - Total Customers: {total_customers:,}
         - Orders per Customer: {conversion_rate:.1f}%
-        - Customer Growth: {customers_growth:.1f}%
+        - Customer Growth: {customers_growth}
         """)
     
     with col3:
+        # Orders
+        total_orders = orders_filtered['order_id'].nunique()
+        prev_orders = prev_orders_data['order_id'].nunique() if not prev_orders_data.empty else 0
+        orders_growth = calc_growth(total_orders, prev_orders)
+    
         st.warning(f"""
         **Operational Metrics**
         - Total Orders: {total_orders:,}
         - Avg Items per Order: {avg_items:.1f}
-        - Order Growth: {orders_growth:.1f}%
+        - Order Growth: {orders_growth}
         """)
+
 
 # ================================
 # 📌 HALAMAN: CUSTOMER & MARKET ANALYSIS
