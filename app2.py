@@ -191,40 +191,41 @@ prev_orders_data = orders_processed[prev_mask]
 prev_order_ids = prev_orders_data['order_id'].tolist()
 
 prev_payments_data = orders_payments[orders_payments['order_id'].isin(prev_order_ids)]
+# Fungsi untuk hitung growth
+def calc_growth(current, previous):
+    if previous > 0:
+        return f"{((current - previous) / previous) * 100:.1f}%"
+    else:
+        return "N/A"
 
 # --- EXECUTIVE OVERVIEW ---
 if page == "Executive Overview":
     st.header("📌 Executive Overview")
     col1, col2, col3, col4 = st.columns(4)
     
+    # Revenue
     with col1:
         total_revenue = orders_payments_filtered['payment_value'].sum()
         prev_revenue = prev_payments_data['payment_value'].sum() if not prev_payments_data.empty else 0
-        growth_rate = ((total_revenue - prev_revenue) / prev_revenue * 100) if prev_revenue > 0 else 0
+        st.metric("💰 Total Revenue", f"€ {total_revenue:,.0f}", delta=calc_growth(total_revenue, prev_revenue))
 
-        st.metric("💰 Total Revenue", f"€ {total_revenue:,.0f}", delta=f"{growth_rate:.1f}%")
-
+    # Orders
     with col2:
         total_orders = orders_filtered['order_id'].nunique()
         prev_orders = prev_orders_data['order_id'].nunique() if not prev_orders_data.empty else 0
-        orders_growth = ((total_orders - prev_orders) / prev_orders * 100) if prev_orders > 0 else 0
+        st.metric("📦 Total Orders", f"{total_orders:,}", delta=calc_growth(total_orders, prev_orders))
 
-        st.metric("📦 Total Orders", f"{total_orders:,}", delta=f"{orders_growth:.1f}%")
-
+    # Customers
     with col3:
         total_customers = orders_filtered['customer_id'].nunique()
         prev_customers = prev_orders_data['customer_id'].nunique() if not prev_orders_data.empty else 0
-        customers_growth = ((total_customers - prev_customers) / prev_customers * 100) if prev_customers > 0 else 0
+        st.metric("🧑‍🤝‍🧑 Unique Customers", f"{total_customers:,}", delta=calc_growth(total_customers, prev_customers))
 
-        st.metric("🧑‍🤝‍🧑 Unique Customers", f"{total_customers:,}", delta=f"{customers_growth:.1f}%")
-
+    # AOV
     with col4:
-        avg_order_value = orders_payments_filtered['payment_value'].mean()
-        prev_avg = prev_payments_data['payment_value'].mean() if not prev_payments_data.empty else 0
-        aov_growth = ((avg_order_value - prev_avg) / prev_avg * 100) if prev_avg > 0 else 0
-
-        st.metric("💳 Avg Order Value", f"€ {avg_order_value:,.0f}", delta=f"{aov_growth:.1f}%")
-
+        avg_order_value = orders_payments_filtered['payment_value'].mean() or 0
+        prev_avg = prev_payments_data['payment_value'].mean() or 0
+        st.metric("💳 Avg Order Value", f"€ {avg_order_value:,.0f}", delta=calc_growth(avg_order_value, prev_avg))
 
     # ===================
     # Orders per Month - Improved
