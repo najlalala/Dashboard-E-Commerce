@@ -191,13 +191,16 @@ prev_orders_data = orders_processed[prev_mask]
 prev_order_ids = prev_orders_data['order_id'].tolist()
 
 prev_payments_data = orders_payments[orders_payments['order_id'].isin(prev_order_ids)]
+
 # Fungsi untuk hitung growth
-def calc_growth(current, previous):
+def calc_growth(current, previous, cap=999):
     if previous > 0:
-        return f"{((current - previous) / previous) * 100:.1f}%"
+        growth = ((current - previous) / previous) * 100
+        return f"{growth:.1f}%" if growth < cap else f"{cap}%+"
     else:
         return "N/A"
 
+# --- EXECUTIVE OVERVIEW ---
 # --- EXECUTIVE OVERVIEW ---
 if page == "Executive Overview":
     st.header("📌 Executive Overview")
@@ -226,6 +229,41 @@ if page == "Executive Overview":
         avg_order_value = orders_payments_filtered['payment_value'].mean() or 0
         prev_avg = prev_payments_data['payment_value'].mean() or 0
         st.metric("💳 Avg Order Value", f"€ {avg_order_value:,.0f}", delta=calc_growth(avg_order_value, prev_avg))
+        
+if page == "Growth Analysis":
+    st.header("📈 Growth Analysis")
+
+    # --- Prepare data ---
+    df = orders_processed.copy()
+    df['year'] = df['order_purchase_timestamp'].dt.year
+    df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
+
+    # Revenue per year
+    yearly_data = orders_payments.merge(df[['order_id', 'year']], on='order_id')
+    yearly_revenue = yearly_data.groupby('year')['payment_value'].sum().reset_index()
+    yearly_revenue['growth'] = yearly_revenue['payment_value'].pct_change() * 100
+    yearly_revenue['growth_label'] = yearly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+    yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
+
+    # Revenue per month
+    monthly_data = orders_payments.merge(df[['order_id', 'month']], on='order_id')
+    monthly_revenue = monthly_data.groupby('month')['payment_value'].sum().reset_index()
+    monthly_revenue['growth'] = monthly_revenue['payment_value'].pct_change() * 100
+    monthly_revenue['growth_label'] = monthly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+    monthly_revenue.loc[monthly_revenue['growth'] > 999, 'growth_label'] = "999%+"
+
+    # --- YoY Chart ---
+    st.subheader("📊 Year-over-Year (YoY) Growth")
+    fig_yoy = px.bar(yearly_revenue, x='year', y='payment_value', text='growth_label',
+                     title="YoY Revenue & Growth", labels={'payment_value': 'Revenue (€)'})
+    fig_yoy.update_traces(textposition='outside')
+    st.plotly_chart(fig_yoy, use_container_width=True)
+
+    # --- MoM Chart ---
+    st.subheader("📉 Month-over-Month (MoM) Growth")
+    fig_mom = px.line(monthly_revenue, x='month', y='payment_value', markers=True,
+                      title="MoM Revenue Trend", labels={'payment_value': 'Revenue (€)'})
+    st.plotly_chart(fig_mom, use_container_width=True)
 
     # ===================
     # Orders per Month - Improved
