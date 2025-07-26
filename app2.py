@@ -222,23 +222,36 @@ if page == "Executive Overview":
     # Pastikan kolom waktu ada
     df_growth['year'] = df_growth['order_purchase_timestamp'].dt.year
     df_growth['month'] = df_growth['order_purchase_timestamp'].dt.to_period('M').astype(str)
-    
+        
     # === YoY Revenue ===
     yearly_data = orders_payments.merge(df_growth[['order_id', 'year']], on='order_id', how='left')
-    yearly_revenue = yearly_data.groupby('year', as_index=False)['payment_value'].sum()
-    yearly_revenue = yearly_revenue.sort_values('year')
-    yearly_revenue['growth'] = yearly_revenue['payment_value'].pct_change() * 100
-    yearly_revenue['growth_label'] = yearly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
-    yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
     
+    # Pastikan kolom 'year' ada
+    if 'year' in yearly_data.columns and not yearly_data.empty:
+        yearly_data['year'] = yearly_data['year'].fillna(0).astype(int)
+        yearly_revenue = yearly_data.groupby('year', as_index=False)['payment_value'].sum()
+        yearly_revenue = yearly_revenue[yearly_revenue['year'] > 0]  # buang year=0
+        yearly_revenue = yearly_revenue.sort_values('year')
+        yearly_revenue['growth'] = yearly_revenue['payment_value'].pct_change() * 100
+        yearly_revenue['growth_label'] = yearly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+        yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
+    else:
+        yearly_revenue = pd.DataFrame(columns=['year', 'payment_value', 'growth', 'growth_label'])
+
     # === MoM Revenue ===
     monthly_data = orders_payments.merge(df_growth[['order_id', 'month']], on='order_id', how='left')
-    monthly_revenue = monthly_data.groupby('month', as_index=False)['payment_value'].sum()
-    monthly_revenue['month_dt'] = pd.to_datetime(monthly_revenue['month'], format='%Y-%m', errors='coerce')
-    monthly_revenue = monthly_revenue.dropna(subset=['month_dt']).sort_values('month_dt')
-    monthly_revenue['growth'] = monthly_revenue['payment_value'].pct_change() * 100
-    monthly_revenue['growth_label'] = monthly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
-    monthly_revenue.loc[monthly_revenue['growth'] > 999, 'growth_label'] = "999%+"
+    
+    if 'month' in monthly_data.columns and not monthly_data.empty:
+        monthly_data = monthly_data.dropna(subset=['month'])
+        monthly_revenue = monthly_data.groupby('month', as_index=False)['payment_value'].sum()
+        monthly_revenue['month_dt'] = pd.to_datetime(monthly_revenue['month'], format='%Y-%m', errors='coerce')
+        monthly_revenue = monthly_revenue.dropna(subset=['month_dt']).sort_values('month_dt')
+        monthly_revenue['growth'] = monthly_revenue['payment_value'].pct_change() * 100
+        monthly_revenue['growth_label'] = monthly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
+        monthly_revenue.loc[monthly_revenue['growth'] > 999, 'growth_label'] = "999%+"
+    else:
+        monthly_revenue = pd.DataFrame(columns=['month', 'payment_value', 'month_dt', 'growth', 'growth_label'])
+
     
     # --- YoY Chart ---
     st.subheader("📊 Year-over-Year (YoY) Revenue")
