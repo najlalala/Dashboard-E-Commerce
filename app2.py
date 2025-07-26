@@ -189,7 +189,6 @@ prev_mask = (
 )
 prev_orders_data = orders_processed[prev_mask]
 prev_order_ids = prev_orders_data['order_id'].tolist()
-
 prev_payments_data = orders_payments[orders_payments['order_id'].isin(prev_order_ids)]
 
 # Fungsi untuk hitung growth
