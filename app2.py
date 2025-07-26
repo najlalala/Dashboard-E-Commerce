@@ -210,54 +210,81 @@ if page == "Executive Overview":
         st.metric("💳 Avg Order Value", f"€ {avg_order_value:,.0f}", delta=calc_growth(avg_order_value, prev_avg))
 
     st.markdown("---")
-
+    
     # ===================
     # GROWTH ANALYSIS VISUALS
     # ===================
     st.subheader("📈 Growth Analysis")
     
-    # Pakai data yang sudah difilter (bukan full dataset)
+    # Pakai data yang sudah difilter
     df = orders_filtered.copy()
     
-    # Tambahkan kolom waktu
-    df['year'] = df['order_purchase_timestamp'].dt.year
-    df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
+    # Pastikan ada data
+    if df.empty or orders_payments_filtered.empty:
+        st.warning("⚠️ Tidak ada data untuk periode ini.")
+    else:
+        # Tambahkan kolom waktu
+        if 'year' not in df.columns:
+            df['year'] = df['order_purchase_timestamp'].dt.year
+        if 'month' not in df.columns:
+            df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
     
-    # === YoY Revenue ===
-    yearly_data = orders_payments_filtered.merge(df[['order_id', 'year']], on='order_id', how='left')
-    yearly_revenue = yearly_data.groupby('year', as_index=False)['payment_value'].sum()
-    yearly_revenue = yearly_revenue.sort_values('year')
-    yearly_revenue['growth'] = yearly_revenue['payment_value'].pct_change() * 100
-    yearly_revenue['growth_label'] = yearly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
-    yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
+        # === YoY Revenue ===
+        yearly_data = orders_payments_filtered.merge(df[['order_id', 'year']], on='order_id', how='left')
+        yearly_data['year'] = yearly_data['year'].fillna(0).astype(int)
     
-    # === MoM Revenue ===
-    monthly_data = orders_payments_filtered.merge(df[['order_id', 'month']], on='order_id', how='left')
-    monthly_revenue = monthly_data.groupby('month', as_index=False)['payment_value'].sum()
+        if yearly_data.empty:
+            yearly_revenue = pd.DataFrame(columns=['year', 'payment_value', 'growth', 'growth_label'])
+        else:
+            yearly_revenue = yearly_data.groupby('year', as_index=False)['payment_value'].sum()
+            yearly_revenue = yearly_revenue.sort_values('year')
+            yearly_revenue['growth'] = yearly_revenue['payment_value'].pct_change() * 100
+            yearly_revenue['growth_label'] = yearly_revenue['growth'].apply(
+                lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
+            )
+            yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
     
-    # Ubah month ke datetime agar urut
-    monthly_revenue['month_dt'] = pd.to_datetime(monthly_revenue['month'], format='%Y-%m')
-    monthly_revenue = monthly_revenue.sort_values('month_dt')
+        # === MoM Revenue ===
+        monthly_data = orders_payments_filtered.merge(df[['order_id', 'month']], on='order_id', how='left')
     
-    monthly_revenue['growth'] = monthly_revenue['payment_value'].pct_change() * 100
-    monthly_revenue['growth_label'] = monthly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
-    monthly_revenue.loc[monthly_revenue['growth'] > 999, 'growth_label'] = "999%+"
+        if monthly_data.empty:
+            monthly_revenue = pd.DataFrame(columns=['month', 'payment_value', 'growth', 'growth_label'])
+        else:
+            monthly_revenue = monthly_data.groupby('month', as_index=False)['payment_value'].sum()
+            monthly_revenue['month_dt'] = pd.to_datetime(monthly_revenue['month'], format='%Y-%m', errors='coerce')
+            monthly_revenue = monthly_revenue.dropna(subset=['month_dt']).sort_values('month_dt')
+            monthly_revenue['growth'] = monthly_revenue['payment_value'].pct_change() * 100
+            monthly_revenue['growth_label'] = monthly_revenue['growth'].apply(
+                lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A"
+            )
+            monthly_revenue.loc[monthly_revenue['growth'] > 999, 'growth_label'] = "999%+"
     
-    # --- YoY Chart ---
-    st.subheader("📊 Year-over-Year (YoY) Revenue")
-    fig_yoy = px.bar(yearly_revenue, x='year', y='payment_value', text='growth_label',
-                     title="YoY Revenue & Growth", labels={'payment_value': 'Revenue (€)'})
-    fig_yoy.update_traces(textposition='outside')
-    st.plotly_chart(fig_yoy, use_container_width=True)
+        # --- YoY Chart ---
+        st.subheader("📊 Year-over-Year (YoY) Revenue")
+        if not yearly_revenue.empty:
+            fig_yoy = px.bar(
+                yearly_revenue, x='year', y='payment_value', text='growth_label',
+                title="YoY Revenue & Growth", labels={'payment_value': 'Revenue (€)'}
+            )
+            fig_yoy.update_traces(textposition='outside')
+            st.plotly_chart(fig_yoy, use_container_width=True)
+        else:
+            st.info("Tidak ada data YoY untuk ditampilkan.")
     
-    # --- MoM Chart ---
-    st.subheader("📉 Month-over-Month (MoM) Revenue")
-    fig_mom = px.line(monthly_revenue, x='month_dt', y='payment_value', markers=True,
-                      title="MoM Revenue Trend", labels={'payment_value': 'Revenue (€)', 'month_dt': 'Month'})
-    fig_mom.update_xaxes(tickformat="%b %Y")  # Format axis jadi Jan 2018
-    st.plotly_chart(fig_mom, use_container_width=True)
+        # --- MoM Chart ---
+        st.subheader("📉 Month-over-Month (MoM) Revenue")
+        if not monthly_revenue.empty:
+            fig_mom = px.line(
+                monthly_revenue, x='month_dt', y='payment_value', markers=True,
+                title="MoM Revenue Trend", labels={'payment_value': 'Revenue (€)', 'month_dt': 'Month'}
+            )
+            fig_mom.update_xaxes(tickformat="%b %Y")  # Format axis jadi Jan 2018
+            st.plotly_chart(fig_mom, use_container_width=True)
+        else:
+            st.info("Tidak ada data MoM untuk ditampilkan.")
     
-    st.markdown("---")
+        st.markdown("---")
+
 
     
     # ===================
