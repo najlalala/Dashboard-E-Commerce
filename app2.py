@@ -201,7 +201,6 @@ def calc_growth(current, previous, cap=999):
         return "N/A"
 
 # --- EXECUTIVE OVERVIEW ---
-# --- EXECUTIVE OVERVIEW ---
 if page == "Executive Overview":
     st.header("📌 Executive Overview")
     col1, col2, col3, col4 = st.columns(4)
@@ -230,10 +229,12 @@ if page == "Executive Overview":
         prev_avg = prev_payments_data['payment_value'].mean() or 0
         st.metric("💳 Avg Order Value", f"€ {avg_order_value:,.0f}", delta=calc_growth(avg_order_value, prev_avg))
         
-if page == "Growth Analysis":
-    st.header("📈 Growth Analysis")
+    # ===================
+    # GROWTH ANALYSIS VISUALS
+    # ===================
+    st.subheader("📈 Growth Analysis")
 
-    # --- Prepare data ---
+    # Siapkan data untuk YoY dan MoM
     df = orders_processed.copy()
     df['year'] = df['order_purchase_timestamp'].dt.year
     df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
@@ -253,18 +254,20 @@ if page == "Growth Analysis":
     monthly_revenue.loc[monthly_revenue['growth'] > 999, 'growth_label'] = "999%+"
 
     # --- YoY Chart ---
-    st.subheader("📊 Year-over-Year (YoY) Growth")
+    st.subheader("📊 Year-over-Year (YoY) Revenue")
     fig_yoy = px.bar(yearly_revenue, x='year', y='payment_value', text='growth_label',
                      title="YoY Revenue & Growth", labels={'payment_value': 'Revenue (€)'})
     fig_yoy.update_traces(textposition='outside')
     st.plotly_chart(fig_yoy, use_container_width=True)
 
     # --- MoM Chart ---
-    st.subheader("📉 Month-over-Month (MoM) Growth")
+    st.subheader("📉 Month-over-Month (MoM) Revenue")
     fig_mom = px.line(monthly_revenue, x='month', y='payment_value', markers=True,
                       title="MoM Revenue Trend", labels={'payment_value': 'Revenue (€)'})
     st.plotly_chart(fig_mom, use_container_width=True)
 
+    st.markdown("---")
+    
     # ===================
     # Orders per Month - Improved
     # ===================
