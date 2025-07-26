@@ -241,16 +241,18 @@ if page == "Executive Overview":
     df['year'] = df['order_purchase_timestamp'].dt.year
     df['month'] = df['order_purchase_timestamp'].dt.to_period('M').astype(str)
 
-    # Revenue per year
-    yearly_data = orders_payments.merge(df[['order_id', 'year']], on='order_id')
-    yearly_revenue = yearly_data.groupby('year')['payment_value'].sum().reset_index()
+    # === YoY Revenue ===
+    yearly_data = orders_payments.merge(df[['order_id', 'year']], on='order_id', how='left')
+    yearly_revenue = yearly_data.groupby('year', as_index=False)['payment_value'].sum()
+    yearly_revenue = yearly_revenue.sort_values('year')
     yearly_revenue['growth'] = yearly_revenue['payment_value'].pct_change() * 100
     yearly_revenue['growth_label'] = yearly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
     yearly_revenue.loc[yearly_revenue['growth'] > 999, 'growth_label'] = "999%+"
 
-    # Revenue per month
-    monthly_data = orders_payments.merge(df[['order_id', 'month']], on='order_id')
-    monthly_revenue = monthly_data.groupby('month')['payment_value'].sum().reset_index()
+    # === MoM Revenue ===
+    monthly_data = orders_payments.merge(df[['order_id', 'month']], on='order_id', how='left')
+    monthly_revenue = monthly_data.groupby('month', as_index=False)['payment_value'].sum()
+    monthly_revenue = monthly_revenue.sort_values('month')
     monthly_revenue['growth'] = monthly_revenue['payment_value'].pct_change() * 100
     monthly_revenue['growth_label'] = monthly_revenue['growth'].apply(lambda x: f"{x:.1f}%" if pd.notna(x) else "N/A")
     monthly_revenue.loc[monthly_revenue['growth'] > 999, 'growth_label'] = "999%+"
@@ -269,7 +271,6 @@ if page == "Executive Overview":
     st.plotly_chart(fig_mom, use_container_width=True)
 
     st.markdown("---")
-
     
     # ===================
     # Orders per Month - Improved
