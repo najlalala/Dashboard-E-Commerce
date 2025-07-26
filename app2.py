@@ -499,6 +499,7 @@ if page == "Executive Overview":
         st.info(f"""
         **Financial Insights**
         - Total Revenue: € {total_revenue:,.0f}
+        - Average Order Value: € {avg_order_value:,.0f}
         - Growth Rate: {revenue_growth}
         """)
     
