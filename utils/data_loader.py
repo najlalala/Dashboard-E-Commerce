@@ -1,11 +1,22 @@
 import pandas as pd
 import os
+import gdown
 
 def load_all_data(base_path="data"):
+    # File Google Drive untuk geolocation
+    geolocation_url = "https://drive.google.com/uc?id=1RgX0EAZfPbpwEaABInGf71JnCz8wLyoz"
+    geolocation_path = os.path.join(base_path, 'geolocation_dataset.csv')
+
+    # Download hanya jika file belum ada
+    if not os.path.exists(geolocation_path):
+        os.makedirs(base_path, exist_ok=True)
+        gdown.download(geolocation_url, geolocation_path, quiet=False)
+
+    # Load semua dataset
     customers = pd.read_csv(os.path.join(base_path, 'customers_dataset.csv'))
-    geolocation = pd.read_csv(os.path.join(base_path, 'geolocation_dataset.csv'))
+    geolocation = pd.read_csv(geolocation_path)
     leads_qualified = pd.read_csv(os.path.join(base_path, 'marketing_qualified_leads_dataset.csv'))
-    leads_closed = pd.read_csv(os.path.join(base_path, 'closed_deals_dataset.csv'))  
+    leads_closed = pd.read_csv(os.path.join(base_path, 'closed_deals_dataset.csv'))
     order_items = pd.read_csv(os.path.join(base_path, 'order_items_dataset.csv'))
     order_payments = pd.read_csv(os.path.join(base_path, 'order_payments_dataset.csv'))
     order_reviews = pd.read_csv(os.path.join(base_path, 'order_reviews_dataset.csv'))
