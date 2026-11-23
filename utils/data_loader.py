@@ -4,7 +4,7 @@ import gdown
 
 def load_all_data(base_path="data"):
     # File Google Drive untuk geolocation
-    geolocation_url = "https://drive.google.com/file/d/1Wdq9QnJaOQZFKgFtQtey9ExTeEsQCtcJ/view?usp=sharing"
+    geolocation_url = "https://drive.google.com/file/d/1Wdq9QnJaOQZFKgFtQtey9ExTeEsQCtcJ/view?usp=drive_link"
     geolocation_path = os.path.join(base_path, 'geolocation_dataset.csv')
 
     # Download hanya jika file belum ada
