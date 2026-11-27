@@ -188,15 +188,15 @@ st.sidebar.markdown("---")
 data_min = orders_all["order_purchase_timestamp"].min().date()
 data_max = orders_all["order_purchase_timestamp"].max().date()
 if page == "Ringkasan":
-    year = st.sidebar.selectbox("Tahun", [2018, 2017])
+    year = st.sidebar.selectbox("Tahun", [2018, 2017, 2016])
     st.sidebar.caption("2018 dihitung sampai Agu (data Sep–Okt hampir kosong) dan dibandingkan "
-                       "dengan Jan–Agu 2017. 2017 belum punya pembanding karena data 2016 terlalu sedikit.")
+                       "dengan Jan–Agu 2017. 2017 dan 2016 tanpa pembanding: data 2016 hanya Sep–Des dan sangat sedikit.")
     start = max(date(year, 1, 1), data_min)
     end = min(date(year, 12, 31), date(2018, 8, 31), data_max)
     p_start = (pd.Timestamp(start) - pd.DateOffset(years=1)).date()
     p_end = (pd.Timestamp(end) - pd.DateOffset(years=1)).date()
 else:
-    default_start = max(data_min, date(2017, 1, 1))
+    default_start = data_min
     default_end = min(data_max, date(2018, 8, 31))
     picked = st.sidebar.date_input("Rentang tanggal", value=(default_start, default_end),
                                    min_value=data_min, max_value=data_max)
@@ -204,7 +204,7 @@ else:
         st.info("Pilih tanggal mulai dan tanggal selesai di sidebar.")
         st.stop()
     start, end = picked
-    st.sidebar.caption("Data paling lengkap ada di Jan 2017 – Agu 2018.")
+    st.sidebar.caption("2016 hanya berisi Sep–Des dengan order sangat sedikit. Data paling lengkap: Jan 2017 – Agu 2018.")
     p_start = p_end = None
 
 cur = slice_df(orders_all, start, end)
@@ -268,6 +268,8 @@ if page == "Ringkasan":
         arah = "naik" if g_rev >= 0 else "turun"
         lines.append(f"Revenue <b>{arah} {abs(g_rev):.1f}%</b> dibanding {cmp_label}. "
                      f"Perubahan jumlah order {g_ord:+.1f}%, nilai per order {g_aov:+.1f}%.")
+    if year == 2016:
+        lines.append("Data 2016 hanya mencakup Sep–Des dengan order sangat sedikit, jadi belum mewakili setahun penuh.")
     if len(cat):
         lines.append(f"Kategori <b>{cat.iloc[0]['category']}</b> menyumbang "
                      f"{cat.iloc[0]['revenue'] / cat['revenue'].sum() * 100:.1f}% revenue produk. "
