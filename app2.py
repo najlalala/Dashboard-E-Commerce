@@ -39,20 +39,17 @@ st.markdown("""
 
 st.title("📊 Dashboard E-Commerce SSDC")
 
-# Load data dengan error handling
-@st.cache_data
+# Load data dengan cache terbatas
+@st.cache_data(ttl=1800, max_entries=2, show_spinner="Memuat data dashboard...")
 def load_data():
-    try:
-        return load_all_data()
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return None
+    return load_all_data()
 
-data = load_data()
-if data is None:
+try:
+    data = load_data()
+except Exception as e:
+    st.error(f"Error loading data: {e}")
     st.stop()
 
-# Extract data
 orders = data["orders"]
 order_items = data["order_items"]
 payments = data["order_payments"]
@@ -64,30 +61,35 @@ product_cat = data["product_cat"]
 sellers = data["sellers"]
 leads_qualified = data["leads_qualified"]
 leads_closed = data["leads_closed"]
-product_category_name_translation = data['product_cat']
+product_category_name_translation = data["product_cat"]
 
-# Data preprocessing
-@st.cache_data
-def preprocess_data():
-    # Copy dan convert timestamp
+# Geolocation hanya membutuhkan satu koordinat per kota-provinsi
+geo_cols = [
+    "geolocation_city",
+    "geolocation_state",
+    "geolocation_lat",
+    "geolocation_lng"
+]
+geolocation = geolocation[geo_cols].drop_duplicates(
+    subset=["geolocation_city", "geolocation_state"],
+    keep="first"
+).reset_index(drop=True)
+
+@st.cache_data(ttl=1800, max_entries=2)
+def preprocess_orders(orders):
     orders_clean = orders.copy()
-    orders_clean['order_purchase_timestamp'] = pd.to_datetime(orders_clean['order_purchase_timestamp'], errors='coerce')
+    orders_clean["order_purchase_timestamp"] = pd.to_datetime(
+        orders_clean["order_purchase_timestamp"], errors="coerce"
+    )
+    orders_clean["month"] = orders_clean["order_purchase_timestamp"].dt.to_period("M").astype(str)
+    orders_clean["year"] = orders_clean["order_purchase_timestamp"].dt.year
+    orders_clean["year_month"] = orders_clean["order_purchase_timestamp"].dt.strftime("%Y-%m")
+    return orders_clean
 
-    # Tambahkan kolom waktu
-    orders_clean['month'] = orders_clean['order_purchase_timestamp'].dt.to_period("M").astype(str)
-    orders_clean['year'] = orders_clean['order_purchase_timestamp'].dt.year
-    orders_clean['year_month'] = orders_clean['order_purchase_timestamp'].dt.strftime('%Y-%m')
+orders_processed = preprocess_orders(orders)
 
-    # Merge dengan payments
-    orders_payments = orders_clean.merge(payments, on='order_id', how='left')
-
-    # Merge dengan order_items
-    orders_items = orders_clean.merge(order_items, on='order_id', how='left')
-
-    return orders_clean, orders_payments, orders_items
-
-# Jalankan preprocess
-orders_processed, orders_payments, orders_items = preprocess_data()
+# Merge pembayaran saja; hindari merge orders dengan seluruh order_items
+orders_payments = orders_processed.merge(payments, on="order_id", how="left")
 
 @st.cache_data(show_spinner=False)
 def translate_text(text, target_lang='id'):
@@ -137,14 +139,16 @@ if has_valid_dates:
 
         filtered_order_ids = orders_filtered['order_id'].tolist()
         orders_payments_filtered = orders_payments[orders_payments['order_id'].isin(filtered_order_ids)]
-        orders_items_filtered = orders_items[orders_items['order_id'].isin(filtered_order_ids)]
+        orders_items_filtered = order_items[order_items["order_id"].isin(filtered_order_ids)]
 
         st.sidebar.info(f"📊 {len(orders_filtered):,} pesanan dipilih")
     else:
         st.sidebar.error("⚠️ Tanggal mulai tidak boleh lebih besar dari tanggal selesai")
-        orders_filtered, orders_payments_filtered, orders_items_filtered = orders_processed, orders_payments, orders_items
+        orders_filtered, orders_payments_filtered = orders_processed, orders_payments
+        orders_items_filtered = order_items
 else:
-    orders_filtered, orders_payments_filtered, orders_items_filtered = orders_processed, orders_payments, orders_items
+    orders_filtered, orders_payments_filtered = orders_processed, orders_payments
+    orders_items_filtered = order_items
     st.sidebar.warning("⚠️ Data tanggal tidak tersedia")
 
 # Pastikan kolom month dan year_month tetap ada setelah filter
