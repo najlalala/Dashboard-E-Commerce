@@ -187,18 +187,25 @@ st.sidebar.markdown("---")
 
 data_min = orders_all["order_purchase_timestamp"].min().date()
 data_max = orders_all["order_purchase_timestamp"].max().date()
-default_start = max(data_min, date(2017, 1, 1))
-default_end = min(data_max, date(2018, 8, 31))
-
-picked = st.sidebar.date_input("Rentang tanggal", value=(default_start, default_end),
-                               min_value=data_min, max_value=data_max)
-if not isinstance(picked, (tuple, list)) or len(picked) != 2:
-    st.info("Pilih tanggal mulai dan tanggal selesai di sidebar.")
-    st.stop()
-start, end = picked
-
-compare = st.sidebar.radio("Bandingkan dengan", ["Periode sebelumnya", "Tahun sebelumnya"])
-st.sidebar.caption("Data paling lengkap ada di Jan 2017 – Agu 2018, jadi rentang itu dipakai sebagai awal.")
+if page == "Ringkasan":
+    year = st.sidebar.selectbox("Tahun", [2018, 2017])
+    st.sidebar.caption("2018 dihitung sampai Agu (data Sep–Okt hampir kosong) dan dibandingkan "
+                       "dengan Jan–Agu 2017. 2017 belum punya pembanding karena data 2016 terlalu sedikit.")
+    start = max(date(year, 1, 1), data_min)
+    end = min(date(year, 12, 31), date(2018, 8, 31), data_max)
+    p_start = (pd.Timestamp(start) - pd.DateOffset(years=1)).date()
+    p_end = (pd.Timestamp(end) - pd.DateOffset(years=1)).date()
+else:
+    default_start = max(data_min, date(2017, 1, 1))
+    default_end = min(data_max, date(2018, 8, 31))
+    picked = st.sidebar.date_input("Rentang tanggal", value=(default_start, default_end),
+                                   min_value=data_min, max_value=data_max)
+    if not isinstance(picked, (tuple, list)) or len(picked) != 2:
+        st.info("Pilih tanggal mulai dan tanggal selesai di sidebar.")
+        st.stop()
+    start, end = picked
+    st.sidebar.caption("Data paling lengkap ada di Jan 2017 – Agu 2018.")
+    p_start = p_end = None
 
 cur = slice_df(orders_all, start, end)
 if cur.empty:
@@ -206,22 +213,21 @@ if cur.empty:
     st.stop()
 items = slice_df(items_all, start, end)
 
-span = (end - start).days + 1
-if compare == "Periode sebelumnya":
-    p_end = start - timedelta(days=1)
-    p_start = p_end - timedelta(days=span - 1)
+if p_start is not None:
+    prev = slice_df(orders_all, p_start, p_end)
+    has_prev = p_start >= data_min and len(prev) >= 100
+    cmp_label = f"{p_start:%d %b %Y} – {p_end:%d %b %Y}"
 else:
-    p_start = (pd.Timestamp(start) - pd.DateOffset(years=1)).date()
-    p_end = (pd.Timestamp(end) - pd.DateOffset(years=1)).date()
-prev = slice_df(orders_all, p_start, p_end)
-has_prev = p_start >= data_min and len(prev) >= 100
-cmp_label = f"{p_start:%d %b %Y} – {p_end:%d %b %Y}"
+    prev, has_prev, cmp_label = orders_all.iloc[0:0], False, ""
 
 st.title("📊 Dashboard E-Commerce SSDC")
-st.caption(
-    f"Periode: **{start:%d %b %Y} – {end:%d %b %Y}** · {len(cur):,} order · "
-    + (f"pembanding: {cmp_label}" if has_prev else "tidak ada data pembanding untuk rentang ini")
-)
+if page == "Ringkasan":
+    st.caption(
+        f"Tahun **{year}** ({start:%d %b} – {end:%d %b %Y}) · {len(cur):,} order · "
+        + (f"dibandingkan dengan {cmp_label}" if has_prev else "belum ada data tahun sebelumnya untuk dibandingkan")
+    )
+else:
+    st.caption(f"Periode: **{start:%d %b %Y} – {end:%d %b %Y}** · {len(cur):,} order")
 
 
 def kpis(df):
@@ -260,7 +266,7 @@ if page == "Ringkasan":
     if kp:
         g_rev, g_ord, g_aov = (pct_change(k[x], kp[x]) for x in ("rev", "orders", "aov"))
         arah = "naik" if g_rev >= 0 else "turun"
-        lines.append(f"Revenue <b>{arah} {abs(g_rev):.1f}%</b> dibanding periode pembanding. "
+        lines.append(f"Revenue <b>{arah} {abs(g_rev):.1f}%</b> dibanding {cmp_label}. "
                      f"Perubahan jumlah order {g_ord:+.1f}%, nilai per order {g_aov:+.1f}%.")
     if len(cat):
         lines.append(f"Kategori <b>{cat.iloc[0]['category']}</b> menyumbang "
